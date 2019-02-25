@@ -1,0 +1,248 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "LogicAppName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "metadata": {
+                "description": "Name of the Logic App."
+            }
+        },
+        "runBookName": {
+            "type": "string",
+            "metadata": {
+                "description": ""
+            }
+        },
+        "connectionOffice365": {
+            "defaultValue": "office365",
+            "type": "string"
+        },
+        "frequency": {
+            "type": "string",
+            "metadata": {
+                "description": ""
+            },
+            "allowedValues": [
+                "Month",
+                "Week",
+                "Day",
+                "Hour",
+                "Minute",
+                "Second"
+            ]
+        },
+        "interval": {
+            "type": "string",
+            "metadata": {
+                "description": ""
+            }
+        },
+        "User1": {
+            "type": "string",
+            "metadata": {
+                "description": ""
+            }
+        },
+        "User2": {
+            "type": "string",
+            "metadata": {
+                "description": ""
+            }
+        },
+        "connectionAzureAutomation": {
+            "defaultValue": "azureautomation",
+            "type": "string"
+        },
+        "azureAutomationSP": {
+            "type": "string",
+            "metadata": {
+                "description": ""
+            }
+        },
+        "Office365User": {
+            "type": "string",
+            "metadata": {
+                "description": ""
+            }
+        },
+        "WorkFlowPath": {
+            "type": "string",
+            "metadata": {
+                "description": ""
+            }
+        },
+        "Location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": ""
+            }
+        }
+    },
+    "variables": {
+        "Subscription": "[subscription().id]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Logic/workflows",
+            "name": "[parameters('logicAppName')]",
+            "apiVersion": "2017-07-01",
+            "location": "[parameters('Location')]",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "When_an_event_is_added,_updated_or_deleted": {
+                            "recurrence": {
+                                "frequency": "[parameters('frequency')]",
+                                "interval": "[parameters('interval')]"
+                            },
+                            "splitOn": "@triggerBody()?['value']",
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['office365']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/datasets/calendars/tables/@{encodeURIComponent(encodeURIComponent('AQMkAGI1NzQ2NzQwLWQ4YWYtNGNhYy04ZjA1LWJjMGIwODI5NzBhNgBGAAADFcBxVEDJZ0m9PB8rOU4Q5AcAZ-11vjXPB0GQS336OcsoRAAAAgEHAAAAGKJq56oYNEG9MBm0MzfUBAABikk2AAAB'))}/onchangeditems",
+                                "queries": {
+                                    "incomingDays": 300,
+                                    "pastDays": 50
+                                }
+                            }
+                        }
+                    },
+                    "actions": {
+                        "Condition": {
+                            "actions": {
+                                "Create_job": {
+                                    "runAfter": {},
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "body": {
+                                            "properties": {
+                                                "parameters": {
+                                                    "EndTime": "@triggerBody()?['End']",
+                                                    "Resource": "@triggerBody()?['Subject']",
+                                                    "StartTime": "@triggerBody()?['Start']",
+                                                    "users": "@{triggerBody()?['RequiredAttendees']}@{triggerBody()?['OptionalAttendees']}"
+                                                }
+                                            }
+                                        },
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['azureautomation']['connectionId']"
+                                            }
+                                        },
+                                        "method": "put",
+                                        "path": "[parameters('WorkFlowPath')]",
+                                        "queries": {
+                                            "runbookName": "[parameters('runBookName')]",
+                                            "wait": false,
+                                            "x-ms-api-version": "2015-10-31"
+                                        }
+                                    }
+                                }
+                            },
+                            "runAfter": {},
+                            "expression": {
+                                "and": [
+                                    {
+                                        "contains": [
+                                            "@triggerBody()?['Subject']",
+                                            "Canceled"
+                                        ]
+                                    },
+                                    {
+                                        "or": [
+                                            {
+                                                "equals": [
+                                                    "@triggerBody()?['Organizer']",
+                                                    "[parameters('User1')]"
+                                                ]
+                                            },
+                                            {
+                                                "equals": [
+                                                    "@triggerBody()?['Organizer']",
+                                                    "[parameters('User2')]"
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            "type": "If"
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "azureautomation": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('connectionAzureAutomation'))]",
+                                "connectionName": "azureautomation",
+                                "id": "[concat(variables('Subscription') , '/providers/Microsoft.Web/locations/', parameters('Location'),'/managedApis/azureautomation')]"
+                            },
+                            "office365": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('connectionOffice365'))]",
+                                "connectionName": "office365",
+                                "id": "[concat(variables('Subscription'), '/providers/Microsoft.Web/locations/', parameters('Location'),'/managedApis/office365')]"
+                            }
+                        }
+                    }
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/connections', parameters('connectionAzureAutomation'))]",
+                "[resourceId('Microsoft.Web/connections', parameters('connectionOffice365'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.Web/connections",
+            "name": "AzureAutomation",
+            "apiVersion": "2016-06-01",
+            "location": "westeurope",
+            "scale": null,
+            "properties": {
+                "displayName": "[parameters('azureAutomationSP')]",
+                "customParameterValues": {},
+                "api": {
+                    "id": "[concat(variables('Subscription'), '/providers/Microsoft.Web/locations/', parameters('Location'), ' /managedApis/azureautomation')]"
+                }
+            },
+            "dependsOn": []
+        },
+        {
+            "type": "Microsoft.Web/connections",
+            "name": "[parameters('connectionOffice365')]",
+            "apiVersion": "2016-06-01",
+            "location": "[parameters('Location')]",
+            "scale": null,
+            "properties": {
+                "displayName": "[parameters('Office365User')]",
+                "customParameterValues": {},
+                "api": {
+                    "id": "[concat(variables('Subscription'), '/providers/Microsoft.Web/locations/', parameters('Location'), '/managedApis/office365')]"
+                }
+            },
+            "dependsOn": []
+        }
+    ],
+    "outputs": {}
+}

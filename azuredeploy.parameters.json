@@ -1,0 +1,36 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "LogicAppName": {
+            "value": "LA01"
+        },
+        "runBookName": {
+            "value": "RunbookX"
+        },
+        "connectionOffice365": {
+            "value": "office365"
+        },
+        "frequency": {
+            "value": "Hour"
+        },
+        "interval": {
+            "value": "12"
+        },
+        "User1": {
+            "value": "User1@domain.com"
+        },
+        "User2": {
+            "value": "User2@domain.com"
+        },
+        "connectionAzureAutomation": {
+            "value": "azureautomation"
+        },
+        "azureAutomationSP": {
+            "value": "SPName"
+        },
+        "Office365User": {
+            "value": "mailbox@domain.com"
+        }
+    }
+}
